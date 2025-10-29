@@ -219,6 +219,38 @@ describe('Watch only wallet', () => {
     );
   });
 
+  it('normalizes uppercase hardened derivation notation in PSBTs', async () => {
+    const w = new WatchOnlyWallet();
+    w.setSecret(
+      "[168dd603/84H/0H/1H]zpub6rFDtF1nuXZ9PUL4XzKURh3vJBW6Kj6TUrYL4qPtFNtDXtcTVfiqjQDyrZNwjwzt5HS14qdqo3Co2282Lv3Re6Y5wFZxAVuMEpeygnnDwfx",
+    );
+    w.init();
+    assert.ok(w.valid());
+    assert.strictEqual(w.getDerivationPath(), "m/84'/0'/1'");
+    assert.strictEqual(w.getMasterFingerprint(), 64392470);
+
+    const utxos = [
+      {
+        height: 618811,
+        value: 66600,
+        address: 'bc1qzqjwye4musmz56cg44ttnchj49zueh9yr0qsxt',
+        vout: 0,
+        txid: '5df595dc09ee7a5c245b34ea519288137ffee731629c4ff322a6de4f72c06222',
+        wif: false,
+        confirmations: 1,
+      },
+    ];
+
+    const { psbt } = await w.createTransaction(
+      utxos,
+      [{ address: 'bc1qdamevhw3zwm0ajsmyh39x8ygf0jr0syadmzepn', value: 5000 }],
+      22,
+      'bc1qtutssamysdkgd87df0afjct0mztx56qpze7wqe',
+    );
+    assert.strictEqual(psbt.data.inputs[0].bip32Derivation[0].path, "m/84'/0'/1'/0/0");
+    assert.strictEqual(psbt.data.outputs[1].bip32Derivation[0].path, "m/84'/0'/1'/1/0");
+  });
+
   it('can import Electrum compatible backup wallet, and create a tx with master fingerprint hex', async () => {
     const w = new WatchOnlyWallet();
     w.setSecret(require('fs').readFileSync('./tests/unit/fixtures/skeleton-electrum-hex-only.txt', 'ascii'));

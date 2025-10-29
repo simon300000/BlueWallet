@@ -26,7 +26,11 @@ import bip39WalletFormatsBlueWallet from './bip39_wallet_formats_bluewallet.json
 import type { TWallet } from './wallets/types';
 
 // https://github.com/bitcoinjs/bip32/blob/master/ts-src/bip32.ts#L43
-export const validateBip32 = (path: string) => path.match(/^(m\/)?(\d+'?\/)*\d+'?$/) !== null;
+export const validateBip32 = (path: string) => {
+  const trimmedPath = path.trim();
+  if (trimmedPath.length === 0) return false;
+  return /^(m\/)?(\d+['hH]?\/)*\d+['hH]?$/i.test(trimmedPath);
+};
 
 type TStatus = {
   cancelled: boolean;

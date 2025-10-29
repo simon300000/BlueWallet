@@ -4,6 +4,7 @@ import * as bip39 from 'bip39';
 import * as bip39custom from '../../blue_modules/bip39';
 import * as BlueElectrum from '../../blue_modules/BlueElectrum';
 import { LegacyWallet } from './legacy-wallet';
+import { AbstractWallet } from './abstract-wallet';
 import { Transaction } from './types';
 
 type AbstractHDWalletStatics = {
@@ -332,6 +333,6 @@ export class AbstractHDWallet extends LegacyWallet {
    * @param {String} path - path
    */
   setDerivationPath(path: string) {
-    this._derivationPath = path;
+    this._derivationPath = AbstractWallet.normalizeDerivationPath(path);
   }
 }

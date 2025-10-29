@@ -128,7 +128,7 @@ export class MultisigHDWallet extends AbstractHDElectrumWallet {
   }
 
   setDerivationPath(path: string) {
-    this._derivationPath = path;
+    super.setDerivationPath(path);
     switch (this._derivationPath) {
       case "m/48'/0'/0'/2'":
         this._isNativeSegwit = true;

@@ -69,6 +69,28 @@ export class AbstractWallet {
     this.masterFingerprint = 0;
   }
 
+  static normalizeDerivationPath(path?: string | null): string | undefined {
+    if (path === undefined || path === null) return undefined;
+    const trimmed = path.trim();
+    if (trimmed.length === 0) return trimmed;
+    const parts = trimmed.split('/');
+    const normalizedParts = parts.map((part, index) => {
+      if (index === 0) {
+        return part.toLowerCase() === 'm' ? 'm' : part;
+      }
+      if (part.length === 0) return part;
+      let core = part;
+      let hardened = false;
+      while (core.endsWith("'") || core.endsWith('h') || core.endsWith('H')) {
+        hardened = true;
+        core = core.slice(0, -1);
+      }
+      if (core.length === 0) return hardened ? "'" : core;
+      return hardened ? `${core}'` : core;
+    });
+    return normalizedParts.join('/');
+  }
+
   /**
    * @returns {number} Timestamp (millisecsec) of when last transactions were fetched from the network
    */
@@ -237,20 +259,22 @@ export class AbstractWallet {
     const m = this.secret.match(re);
     if (m && m.length === 3) {
       let [hexFingerprint, ...derivationPathArray] = m[1].split('/');
-      const derivationPath = `m/${derivationPathArray.join('/').replace(/h/g, "'")}`;
+      const derivationPath = AbstractWallet.normalizeDerivationPath(`m/${derivationPathArray.join('/')}`);
       if (hexFingerprint.length === 8) {
         hexFingerprint = Buffer.from(hexFingerprint, 'hex').reverse().toString('hex');
         this.masterFingerprint = parseInt(hexFingerprint, 16);
-        this._derivationPath = derivationPath;
+        if (derivationPath) {
+          this._derivationPath = derivationPath;
+        }
       }
       this.secret = m[2];
 
-      if (derivationPath.startsWith("m/84'/0'/") && this.secret.toLowerCase().startsWith('xpub')) {
+      if (derivationPath?.startsWith("m/84'/0'/") && this.secret.toLowerCase().startsWith('xpub')) {
         // need to convert xpub to zpub
         this.secret = this._xpubToZpub(this.secret.split('/')[0]);
       }
 
-      if (derivationPath.startsWith("m/49'/0'/") && this.secret.toLowerCase().startsWith('xpub')) {
+      if (derivationPath?.startsWith("m/49'/0'/") && this.secret.toLowerCase().startsWith('xpub')) {
         // need to convert xpub to ypub
         this.secret = this._xpubToYpub(this.secret);
       }
@@ -281,7 +305,8 @@ export class AbstractWallet {
           this.setLabel(parsedSecret.keystore.label);
         }
         if (parsedSecret.keystore.derivation) {
-          this._derivationPath = parsedSecret.keystore.derivation;
+          const normalizedDerivation = AbstractWallet.normalizeDerivationPath(parsedSecret.keystore.derivation);
+          this._derivationPath = normalizedDerivation ?? parsedSecret.keystore.derivation;
         }
         this.secret = parsedSecret.keystore.xpub;
         this.masterFingerprint = masterFingerprint;
@@ -293,9 +318,10 @@ export class AbstractWallet {
         this.secret = parsedSecret.ExtPubKey;
         const mfp = Buffer.from(parsedSecret.MasterFingerprint, 'hex').reverse().toString('hex');
         this.masterFingerprint = parseInt(mfp, 16);
-        this._derivationPath = parsedSecret.AccountKeyPath.startsWith('m/')
+        const accountPath = parsedSecret.AccountKeyPath.startsWith('m/')
           ? parsedSecret.AccountKeyPath
           : `m/${parsedSecret.AccountKeyPath}`;
+        this._derivationPath = AbstractWallet.normalizeDerivationPath(accountPath) ?? accountPath;
         if (parsedSecret.CoboVaultFirmwareVersion) this.use_with_hardware_wallet = true;
         return this;
       }
@@ -320,7 +346,7 @@ export class AbstractWallet {
       const path = 'm' + fpAndPath.substring(pathIndex);
       const fp = fpAndPath.substring(0, pathIndex);
 
-      this._derivationPath = path;
+      this._derivationPath = AbstractWallet.normalizeDerivationPath(path) ?? path;
       const mfp = Buffer.from(fp, 'hex').reverse().toString('hex');
       this.masterFingerprint = parseInt(mfp, 16);
 
@@ -352,7 +378,7 @@ export class AbstractWallet {
         this.secret = json.bip84._pub;
         const mfp = Buffer.from(json.xfp, 'hex').reverse().toString('hex');
         this.masterFingerprint = parseInt(mfp, 16);
-        this._derivationPath = json.bip84.deriv;
+        this._derivationPath = AbstractWallet.normalizeDerivationPath(json.bip84.deriv) ?? json.bip84.deriv;
         return this;
       }
     } catch (_) {}
